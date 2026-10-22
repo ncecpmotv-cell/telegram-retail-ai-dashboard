@@ -11,6 +11,7 @@
   const USERS_KEY = "retail_ai_users";
 
   const $ = (id) => document.getElementById(id);
+  const T = (window.RetailI18n && window.RetailI18n.t) || ((k) => k);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtEpoch = (sec) => (sec ? new Date(sec * 1000).toLocaleString() : "—");
 
@@ -120,7 +121,7 @@
     if (cfg.bot_token && cfg.state_channel_id) {
       // Live read works in any browser too (Bot API is CORS-open).
       try {
-        state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
+        state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id, cfg.bridge_secret);
       } catch (err) {
         el.innerHTML = '<div class="text-sm text-red-400 p-3">Fleet read failed: ' + esc(err.message) + "</div>";
         return;
@@ -148,6 +149,13 @@
   // --------------------------------------------------------------- boot
   document.addEventListener("DOMContentLoaded", async () => {
     TMA.init();
+    if (window.RetailI18n) window.RetailI18n.apply();
+    const langBtn = document.getElementById("lang-toggle");
+    if (langBtn && window.RetailI18n) {
+      langBtn.addEventListener("click", () => {
+        window.RetailI18n.setLang(window.RetailI18n.lang() === "ar" ? "en" : "ar");
+      });
+    }
     if (TMA.isDemo) $("demo-banner").classList.remove("hidden");
     if (!(await isAdmin())) {
       document.body.innerHTML =

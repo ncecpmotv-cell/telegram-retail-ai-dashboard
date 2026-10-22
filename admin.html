@@ -12,11 +12,14 @@
   <div class="app-shell">
 
     <header class="app-header">
-      <h1 class="text-lg font-bold">🛡️ Admin Panel</h1>
-      <a href="index.html" class="text-xs opacity-60">Dashboard →</a>
+      <h1 class="text-lg font-bold" data-i18n="adminTitle">🛡️ Admin Panel</h1>
+      <div class="flex items-center gap-2">
+        <a href="index.html" class="text-xs opacity-60" data-i18n="dashboard">Dashboard →</a>
+        <button id="lang-toggle" class="btn btn-ghost text-xs px-2 py-1">عربي</button>
+      </div>
     </header>
 
-    <div id="demo-banner" class="demo-banner hidden">
+    <div id="demo-banner" class="demo-banner hidden" data-i18n="adminDemoBanner">
       Demo mode — running outside Telegram. Admin restrictions disabled.
     </div>
 
@@ -24,30 +27,30 @@
       <!-- Fleet monitor -->
       <div class="card">
         <div class="flex items-center justify-between mb-2">
-          <div class="text-sm font-semibold">🛰️ Fleet monitor</div>
-          <button id="refresh-fleet" class="btn btn-ghost text-xs">Refresh</button>
+          <div class="text-sm font-semibold" data-i18n="fleetMonitor">🛰️ Fleet monitor</div>
+          <button id="refresh-fleet" class="btn btn-ghost text-xs" data-i18n="refresh">Refresh</button>
         </div>
         <div id="fleet-card" class="rounded-xl"></div>
       </div>
 
       <!-- Subscription manager -->
       <div class="card">
-        <div class="text-sm font-semibold mb-2">💳 Subscriptions</div>
+        <div class="text-sm font-semibold mb-2" data-i18n="subscriptions">💳 Subscriptions</div>
         <div id="user-list" class="space-y-2"></div>
 
         <div class="mt-3 pt-3 border-t border-white/10">
-          <div class="text-xs opacity-60 mb-2">Add / manage a user</div>
+          <div class="text-xs opacity-60 mb-2" data-i18n="addManageUser">Add / manage a user</div>
           <div class="grid grid-cols-2 gap-2">
-            <input id="new-user-id" class="input" placeholder="user_id (Telegram id)">
-            <input id="new-user-name" class="input" placeholder="Name (optional)">
+            <input id="new-user-id" class="input" data-i18n-ph="userId" placeholder="user_id (Telegram id)">
+            <input id="new-user-name" class="input" data-i18n-ph="name" placeholder="Name (optional)">
           </div>
-          <button id="add-user" class="btn btn-ghost w-full mt-2">+ Add user</button>
+          <button id="add-user" class="btn btn-ghost w-full mt-2" data-i18n="addUser">+ Add user</button>
         </div>
 
         <div class="mt-3 pt-3 border-t border-white/10">
-          <div class="text-xs opacity-60 mb-2">Grant subscription (pushes to the core)</div>
+          <div class="text-xs opacity-60 mb-2" data-i18n="grantSub">Grant subscription (pushes to the core)</div>
           <div class="grid grid-cols-2 gap-2">
-            <input id="sub-user-id" class="input" placeholder="user_id">
+            <input id="sub-user-id" class="input" data-i18n-ph="userId" placeholder="user_id">
             <select id="sub-days" class="input">
               <option value="7">7 days</option>
               <option value="30" selected>30 days</option>
@@ -60,18 +63,19 @@
             <button id="quick-90" class="btn btn-ghost">+90d</button>
             <button id="quick-365" class="btn btn-ghost">+365d</button>
           </div>
-          <button id="push-subscription" class="btn btn-primary w-full mt-2">Push subscription</button>
+          <button id="push-subscription" class="btn btn-primary w-full mt-2" data-i18n="pushSub">Push subscription</button>
         </div>
       </div>
     </section>
 
     <footer class="app-footer">
-      <span class="text-xs opacity-60">Changes flow: Admin → channel → edge core (subscription firewall)</span>
+      <span class="text-xs opacity-60" data-i18n="fleetNote">Changes flow: Admin → channel → edge core (subscription firewall)</span>
     </footer>
   </div>
 
   <div id="toast" class="toast"></div>
   <script src="assets/js/telegram-sdk.js"></script>
+  <script src="assets/js/i18n.js"></script>
   <script src="assets/js/admin.js"></script>
 </body>
 </html>

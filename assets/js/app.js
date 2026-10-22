@@ -13,6 +13,7 @@
   let lastSource = null;
 
   const $ = (id) => document.getElementById(id);
+  const T = (window.RetailI18n && window.RetailI18n.t) || ((k) => k);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   // ---------------------------------------------------------------- helpers
@@ -49,7 +50,7 @@
     // try it first whenever a token + channel are configured.
     if (cfg.bot_token && cfg.state_channel_id) {
       try {
-        const state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
+        const state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id, cfg.bridge_secret);
         if (state) {
           lastState = state;
           await TMA.mirrorState(state);
@@ -85,11 +86,26 @@
   // ---------------------------------------------------------------- render
   function renderStatus(state) {
     const st = (state && state.current_status) || {};
-    $("status-badge").textContent = st.status || "Unknown";
-    $("status-badge").className = "badge " + statusBadgeClass(st.status);
+    const nowMs = Date.now();
+    const stMs = st.timestamp ? st.timestamp * 1000 : 0;
+    const minsAgo = stMs ? Math.max(0, Math.round((nowMs - stMs) / 60000)) : null;
+    const offline = minsAgo !== null && minsAgo > 10;
+    $("status-badge").textContent = offline ? T("deviceOffline") : (st.status || "Unknown");
+    $("status-badge").className = "badge " + (offline ? "badge-gray" : statusBadgeClass(st.status));
     $("status-count").textContent = st.count != null ? st.count : "—";
     $("status-index").textContent = st.congestion_index != null ? st.congestion_index : "—";
-    $("status-updated").textContent = "Updated " + (st.timestamp ? fmtEpoch(st.timestamp) : "never");
+    $("status-updated").textContent = st.timestamp
+      ? (offline ? T("deviceLastSeen") + " " + minsAgo + " " + T("minutesAgo") : T("updated") + " " + fmtEpoch(st.timestamp))
+      : T("neverUpdated");
+    const dev = state && state.device;
+    const dm = $("device-metrics");
+    if (dm) {
+      dm.textContent = dev
+        ? (T("inferenceMs") + ": " + (dev.last_inference_ms != null ? dev.last_inference_ms : "—") +
+           " · " + T("uptimeMin") + ": " + Math.floor((dev.uptime_seconds || 0) / 60) +
+           " · " + T("infOk") + ": " + (dev.inference_ok || 0) + "/" + ((dev.inference_ok || 0) + (dev.inference_fail || 0)))
+        : "";
+    }
     const alertEl = $("status-alert");
     if (st.alert) {
       alertEl.textContent = "⚠ " + st.alert;
@@ -137,9 +153,9 @@
       renderStatus(state);
       renderBI(state && state.last_analytics_report);
       const labels = {
-        live: "Live · reading the channel bus",
-        mirror: "Cached mirror (no channel configured)",
-        demo: "Demo mode (mock data)",
+        live: T("connLive"),
+        mirror: T("connMirror"),
+        demo: T("connDemo"),
       };
       $("conn-state").textContent = labels[lastSource] || labels.demo;
     } catch (err) {
@@ -178,7 +194,7 @@
 
   async function loadSettingsForm() {
     const cfg = await TMA.config.get();
-    ["bot_token", "state_channel_id", "admin_id", "store_capacity", "staffing_threshold", "refresh_seconds"]
+    ["bot_token", "state_channel_id", "admin_id", "store_capacity", "staffing_threshold", "refresh_seconds", "bridge_secret"]
       .forEach((k) => { const el = $(k); if (el) el.value = cfg[k] || ""; });
     $("prompt-input").value = cfg.ai_target_prompt || "";
     $("camera-list").innerHTML = "";
@@ -196,6 +212,7 @@
       store_capacity: $("store_capacity").value.trim(),
       staffing_threshold: $("staffing_threshold").value.trim(),
       refresh_seconds: $("refresh_seconds").value.trim() || "30",
+      bridge_secret: $("bridge_secret").value.trim(),
       ai_target_prompt: $("prompt-input").value.trim(),
       cctv_rtsp_urls,
     };
@@ -239,6 +256,13 @@
   // ------------------------------------------------------------------- boot
   document.addEventListener("DOMContentLoaded", async () => {
     TMA.init();
+    if (window.RetailI18n) window.RetailI18n.apply();
+    const langBtn = document.getElementById("lang-toggle");
+    if (langBtn && window.RetailI18n) {
+      langBtn.addEventListener("click", () => {
+        window.RetailI18n.setLang(window.RetailI18n.lang() === "ar" ? "en" : "ar");
+      });
+    }
     document.querySelectorAll("[data-tab-btn]").forEach((b) =>
       b.addEventListener("click", () => switchTab(b.getAttribute("data-tab-btn"))));
     $("add-camera").addEventListener("click", () => addCameraRow());

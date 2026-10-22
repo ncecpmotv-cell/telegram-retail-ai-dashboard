@@ -79,6 +79,7 @@
       store_capacity: "50",
       staffing_threshold: "15",
       refresh_seconds: "30",
+      bridge_secret: "",
     },
     async get() {
       try {
@@ -93,17 +94,59 @@
     },
   };
 
+  /** Deterministic JSON matching the core's canonical_json (sorted keys). */
+  function sortedStringify(obj) {
+    if (obj === null || typeof obj !== "object") return JSON.stringify(obj);
+    if (Array.isArray(obj)) return "[" + obj.map(sortedStringify).join(",") + "]";
+    return "{" + Object.keys(obj).sort()
+      .map((k) => JSON.stringify(k) + ":" + sortedStringify(obj[k]))
+      .join(",") + "}";
+  }
+
+  async function hmacHex(secret, data) {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+    return Array.from(new Uint8Array(sig))
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  /** HMAC-sign an envelope with the shared BRIDGE_SECRET (when configured). */
+  async function signEnvelope(type, payload, secret, userId) {
+    const envelope = { type: type, payload: payload };
+    if (userId) envelope.user_id = String(userId);
+    if (secret && window.crypto && crypto.subtle) {
+      envelope.sig = await hmacHex(secret, sortedStringify(envelope));
+    }
+    return envelope;
+  }
+
+  /** Verify a received envelope's signature (optional; only when secret set). */
+  async function verifyEnvelope(envelope, secret) {
+    if (!secret) return true;
+    if (!(window.crypto && crypto.subtle) || typeof envelope.sig !== "string") return false;
+    const rest = Object.assign({}, envelope);
+    delete rest.sig;
+    const expected = await hmacHex(secret, sortedStringify(rest));
+    return expected === envelope.sig;
+  }
+
   /** Thin client for the Telegram Bot API (CORS-enabled by Telegram). */
   const botApi = {
     base(token) { return "https://api.telegram.org/bot" + token; },
-    async getPinnedState(token, channelId) {
+    async getPinnedState(token, channelId, secret) {
       const url = this.base(token) + "/getChat?chat_id=" + encodeURIComponent(channelId);
       const resp = await fetch(url);
       const body = await resp.json();
       if (!body.ok || !body.result) throw new Error(body.description || "getChat failed");
       const pinned = body.result.pinned_message;
       if (!pinned || !pinned.text) return null;
-      return JSON.parse(pinned.text);
+      const state = JSON.parse(pinned.text);
+      if (!(await verifyEnvelope(state, secret))) {
+        throw new Error("state signature invalid — check BRIDGE_SECRET");
+      }
+      return state;
     },
     async postEnvelope(token, channelId, envelope) {
       const url = this.base(token) + "/sendMessage";
@@ -148,14 +191,15 @@
    * would make the daemon blind to the write path.
    */
   async function pushEnvelope(type, payload) {
+    const cfg = await configApi.get();
     if (WebApp && WebApp.sendData) {
-      WebApp.sendData(JSON.stringify(buildEnvelope(type, payload)));
+      const env = await signEnvelope(type, payload, cfg.bridge_secret, currentUserId());
+      WebApp.sendData(JSON.stringify(env));
       return "sendData";
     }
-    const cfg = await configApi.get();
     if (cfg.bot_token && cfg.state_channel_id) {
-      const envelope = buildEnvelope(type, payload);
-      await botApi.postEnvelope(cfg.bot_token, cfg.state_channel_id, envelope);
+      const env = await signEnvelope(type, payload, cfg.bridge_secret, currentUserId());
+      await botApi.postEnvelope(cfg.bot_token, cfg.state_channel_id, env);
       return "api";
     }
     throw new Error("No write path available: open the app from the bot chat (sendData) or configure a relay token + channel in Settings.");
@@ -223,6 +267,8 @@
     store,
     config: configApi,
     botApi,
+    signEnvelope,
+    verifyEnvelope,
     mirrorState,
     pushEnvelope,
     demoTick,
