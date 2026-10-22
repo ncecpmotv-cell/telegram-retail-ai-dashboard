@@ -1,5 +1,7 @@
 # 📱 telegram-retail-ai-dashboard
 
+> 📖 العربية: [النسخة العربية من الدليل](README.ar.md) — [English version](README.md)
+
 **Serverless Telegram Mini App for the Retail AI appliance.**
 
 A purely static dashboard (no backend, no build step, zero hosting cost) that
