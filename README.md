@@ -84,27 +84,27 @@ Chat with [@BotFather](https://t.me/BotFather):
 > The MAIN bot's token belongs **only** on the edge device (`config.env` in
 > `poco-retail-ai-core`). It is never entered into this dashboard.
 
-### 1b. Create the relay bot (why: Telegram never echoes a bot's own channel posts back to itself)
+### 1b. Write path — sendData (primary) vs relay bot (optional)
 
-`getUpdates` (which the edge daemon polls) does not deliver a bot's own
-channel messages back to that bot. So if the dashboard posted settings
-envelopes with the MAIN token, the daemon would never see them. The fix is a
-second bot used only for the dashboard's read/write side — which also keeps
-the main token off the frontend:
+Settings/subscriptions reach the edge daemon through the bot's `getUpdates`
+stream. Two supported ways:
 
-```
-BotFather → /newbot   → name it "Retail AI Relay"   (the RELAY bot)
-/token               → copy the relay token
-```
-
-Add the **relay bot** to the channel too, as **administrator** with
-**Post messages** and **Pin messages** rights.
+- **`WebApp.sendData()` (primary, one bot, zero config)** — when the app is
+  opened from the bot (menu button), saving sends a `web_app_data` update to
+  the bot, which the daemon polls. No token is needed in the dashboard for
+  writes.
+- **Relay bot (optional)** — if you open the app from a plain link (where
+  `sendData` is unavailable) and want dialog-free writes, create a second bot
+  in BotFather (`/newbot`, e.g. "Retail AI Relay"), add it to the channel as
+  admin, and put ITS token in the dashboard Settings. Never put the MAIN
+  bot's token there for writes: Telegram does not echo a bot's own channel
+  posts back to itself, so those writes would be invisible to the daemon.
 
 ### 2. Create the state channel (the zero-cost bus)
 
 1. In Telegram: **New Channel** → name it (e.g. `MyStoreRetailAI`) → **Private**.
-2. Add **both** bots (`Retail AI` and `Retail AI Relay`) as **administrators**
-   with **Post messages** and **Pin messages** rights.
+2. Add your main bot as **administrator** with **Post messages** and
+   **Pin messages** rights (add the relay bot too, if you created one).
 3. Note the channel `@username` (create one in channel settings if missing).
 
 ### 3. Register the Mini App
@@ -112,7 +112,8 @@ Add the **relay bot** to the channel too, as **administrator** with
 BotFather → `/newapp` (or `/mybots` → Bot Settings → Menu Button):
 
 - URL: `https://<user>.github.io/telegram-retail-ai-dashboard/`
-- Set it as the bot's **Menu Button** so it opens inside Telegram.
+- Set it as the bot's **Menu Button** so it opens inside Telegram
+  (this also makes `sendData` available).
 
 ### 4. First launch — configure the bridge
 
@@ -120,7 +121,7 @@ Open the app, go to **Settings → Telegram bridge** and enter:
 
 | Field | Value |
 |---|---|
-| `BOT_TOKEN` | the **RELAY bot's** token from step 1b (never the main bot's) |
+| `BOT_TOKEN` | any bot that is an admin of the channel (used for READING the pinned state). Use the relay bot's token if you created one |
 | `STATE_CHANNEL_ID` | the channel `@username` from step 2 |
 | `ADMIN_ID` | your numeric Telegram id (ask [@userinfobot](https://t.me/userinfobot)) |
 

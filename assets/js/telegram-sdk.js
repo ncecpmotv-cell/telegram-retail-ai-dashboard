@@ -10,11 +10,15 @@
  *                WebApp.sendData() is used as a fallback when no token/channel
  *                is configured (only works when launched from a bot chat).
  *
- * RELAY BOT (important): the token entered in Settings must be a SECOND bot
- * ("relay") added to the channel as admin. Telegram never delivers a bot's
- * own channel posts back to itself via getUpdates, so envelopes posted with
- * the same token the edge daemon polls would be invisible to the daemon.
- * Using a relay token also keeps the main bot token off the frontend.
+ * WRITE PATHS (in order):
+ *  1. WebApp.sendData() — primary. Works with ONE bot: the Mini App's bot
+ *     receives a web_app_data update and the edge daemon polls it via
+ *     getUpdates. No token needed in the frontend for writes.
+ *  2. Bot API post to the channel — fallback for link-launched apps. The
+ *     token used HERE must be a RELAY bot's (a second bot admin of the
+ *     channel): Telegram never delivers a bot's own channel posts back to
+ *     itself, so using the main token would make the daemon blind to the
+ *     write path.
  *
  * Envelope schema is shared with poco-retail-ai-core (see its README).
  *
@@ -130,19 +134,31 @@
     return { type, user_id: currentUserId(), payload };
   }
 
-  /** Post an envelope via Bot API; falls back to sendData when unconfigured. */
+  /** Post an envelope to the core.
+   *
+   * Primary path (live Telegram): WebApp.sendData() → the bot receives a
+   * web_app_data update → the edge daemon picks it up via getUpdates. This
+   * works with ONE bot and needs no token in the frontend.
+   *
+   * Fallback path: if sendData is unavailable (e.g. app opened from a plain
+   * link instead of the bot chat) and a token+channel are configured, post
+   * the envelope to the channel via the Bot API. NOTE: that token must be a
+   * RELAY bot's (a second bot admin of the channel) — Telegram never echoes
+   * a bot's own channel posts back to itself, so using the main token here
+   * would make the daemon blind to the write path.
+   */
   async function pushEnvelope(type, payload) {
+    if (WebApp && WebApp.sendData) {
+      WebApp.sendData(JSON.stringify(buildEnvelope(type, payload)));
+      return "sendData";
+    }
     const cfg = await configApi.get();
     if (cfg.bot_token && cfg.state_channel_id) {
       const envelope = buildEnvelope(type, payload);
       await botApi.postEnvelope(cfg.bot_token, cfg.state_channel_id, envelope);
       return "api";
     }
-    if (WebApp && WebApp.sendData) {
-      WebApp.sendData(JSON.stringify(buildEnvelope(type, payload)));
-      return "sendData";
-    }
-    throw new Error("No Telegram bridge configured. Fill in BOT_TOKEN + channel in Settings.");
+    throw new Error("No write path available: open the app from the bot chat (sendData) or configure a relay token + channel in Settings.");
   }
 
   /** Mirror the state envelope into CloudStorage under the KB keys. */
