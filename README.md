@@ -137,6 +137,16 @@ device posts and can push settings back to it.
 | `index.html` | Store owner | Live occupancy badge (Normal/Congested/Critical/Blocked), congestion index, alert banner, subscription line, BI charts (peak hours, footfall trend, efficiency, staffing gaps), camera + prompt settings |
 | `admin.html` | Admin (`ADMIN_ID`) | Fleet monitor (device status, last seen, expiry), user list, subscription grants (+30/+90/+365 days) pushed to the core |
 
+## 🏪 Cafe operations features
+
+Beyond live status and BI charts, the Status tab now shows operational tools:
+
+- **Zone cards** — per-camera (zone) footfall today + current count, so owners see which area (counter / entrance / seating) is busiest
+- **Recommended staffing** — a 7-day-average hourly staffing plan (bars) computed by the edge core
+- **Camera health** — 🟢/🟡/🔴 per camera from the core's grab/inference success counters
+- **Offline detection** — the badge turns "Offline" when the device hasn't posted for 10 minutes
+- **Chat alerts** — Critical congestion, new staffing gaps, and off-hours activity ping the owner's Telegram chat
+
 ## 🔑 Data model
 
 | Where | Key | Meaning |
