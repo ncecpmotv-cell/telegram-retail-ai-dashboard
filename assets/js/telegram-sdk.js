@@ -80,6 +80,9 @@
       staffing_threshold: "15",
       refresh_seconds: "30",
       bridge_secret: "",
+      relay_bot_token: "",
+      branches: [],
+      active_branch: "",
     },
     async get() {
       try {
@@ -190,19 +193,37 @@
    * a bot's own channel posts back to itself, so using the main token here
    * would make the daemon blind to the write path.
    */
+  /** Channel used for the currently selected branch (multi-store). */
+  function activeChannel(cfg) {
+    if (cfg.active_branch && Array.isArray(cfg.branches)) {
+      const b = cfg.branches.find((x) => x.name === cfg.active_branch);
+      if (b && b.channel_id) return b.channel_id;
+    }
+    return cfg.state_channel_id || "";
+  }
+
   async function pushEnvelope(type, payload) {
     const cfg = await configApi.get();
+    const channel = activeChannel(cfg);
+    // 1) RELAY bot token — full write path from ANY context (no sendData).
+    if (cfg.relay_bot_token && channel) {
+      const env = await signEnvelope(type, payload, cfg.bridge_secret, currentUserId());
+      await botApi.postEnvelope(cfg.relay_bot_token, channel, env);
+      return "relay";
+    }
+    // 2) sendData inside Telegram (works from the bot chat).
     if (WebApp && WebApp.sendData) {
       const env = await signEnvelope(type, payload, cfg.bridge_secret, currentUserId());
       WebApp.sendData(JSON.stringify(env));
       return "sendData";
     }
-    if (cfg.bot_token && cfg.state_channel_id) {
+    // 3) Main token fallback (reads fine; the daemon may not see these posts).
+    if (cfg.bot_token && channel) {
       const env = await signEnvelope(type, payload, cfg.bridge_secret, currentUserId());
-      await botApi.postEnvelope(cfg.bot_token, cfg.state_channel_id, env);
+      await botApi.postEnvelope(cfg.bot_token, channel, env);
       return "api";
     }
-    throw new Error("No write path available: open the app from the bot chat (sendData) or configure a relay token + channel in Settings.");
+    throw new Error("No write path available: configure a relay token + channel, or open from the bot chat (sendData).");
   }
 
   /** Mirror the state envelope into CloudStorage under the KB keys. */
@@ -269,6 +290,7 @@
     botApi,
     signEnvelope,
     verifyEnvelope,
+    activeChannel,
     mirrorState,
     pushEnvelope,
     demoTick,

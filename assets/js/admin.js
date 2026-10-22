@@ -117,11 +117,12 @@
   async function renderFleet() {
     const el = $("fleet-card");
     const cfg = await TMA.config.get();
+    const channel = TMA.activeChannel(cfg);
     let state = null;
-    if (cfg.bot_token && cfg.state_channel_id) {
+    if (cfg.bot_token && channel) {
       // Live read works in any browser too (Bot API is CORS-open).
       try {
-        state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id, cfg.bridge_secret);
+        state = await TMA.botApi.getPinnedState(cfg.bot_token, channel, cfg.bridge_secret);
       } catch (err) {
         el.innerHTML = '<div class="text-sm text-red-400 p-3">Fleet read failed: ' + esc(err.message) + "</div>";
         return;
@@ -133,16 +134,17 @@
       return;
     }
     const st = (state && state.current_status) || {};
-    const badge = { Normal: "badge-green", Congested: "badge-amber", Critical: "badge-red", Blocked: "badge-gray" }[st.status] || "badge-gray";
+    const badge = { Normal: "badge-green", Congested: "badge-amber", Critical: "badge-red", Blocked: "badge-gray", Offline: "badge-gray" }[st.status] || "badge-gray";
+    const branchLabel = cfg.active_branch || (cfg.state_channel_id || "(unset)");
     el.innerHTML =
       '<div class="flex items-center justify-between">' +
-      '<div><div class="font-medium">Store device</div>' +
-      '<div class="text-xs opacity-60">channel ' + esc(cfg.state_channel_id || "(unset)") + "</div></div>" +
+      '<div><div class="font-medium">' + esc(branchLabel) + "</div>" +
+      '<div class="text-xs opacity-60">' + T("channelLbl") + " " + esc(channel || "(unset)") + "</div></div>" +
       '<span class="badge ' + badge + '">' + esc(st.status || "Unknown") + "</span></div>" +
       '<div class="grid grid-cols-3 gap-2 mt-3 text-center">' +
-      '<div><div class="text-2xl font-bold">' + esc(st.count != null ? st.count : "—") + '</div><div class="text-xs opacity-60">people</div></div>' +
-      '<div><div class="text-2xl font-bold">' + (state ? fmtEpoch(state.updated_at).split(",")[1] || "—" : "—") + '</div><div class="text-xs opacity-60">last seen</div></div>' +
-      '<div><div class="text-2xl font-bold">' + (state && state.subscription_expiry ? fmtEpoch(state.subscription_expiry).split(",")[0] : "—") + '</div><div class="text-xs opacity-60">expiry</div></div>' +
+      '<div><div class="text-2xl font-bold">' + esc(st.count != null ? st.count : "—") + '</div><div class="text-xs opacity-60">' + T("people") + "</div></div>" +
+      '<div><div class="text-2xl font-bold">' + (state ? fmtEpoch(state.updated_at).split(",")[1] || "—" : "—") + '</div><div class="text-xs opacity-60">' + T("lastSeen") + "</div></div>" +
+      '<div><div class="text-2xl font-bold">' + (state && state.subscription_expiry ? fmtEpoch(state.subscription_expiry).split(",")[0] : "—") + '</div><div class="text-xs opacity-60">' + T("expiry") + "</div></div>" +
       "</div>";
   }
 

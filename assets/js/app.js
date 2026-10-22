@@ -46,11 +46,12 @@
   // ------------------------------------------------------------------ state
   async function fetchState() {
     const cfg = await TMA.config.get();
+    const channel = TMA.activeChannel(cfg);
     // Live channel-bus read works in ANY browser (Bot API is CORS-open) —
     // try it first whenever a token + channel are configured.
-    if (cfg.bot_token && cfg.state_channel_id) {
+    if (cfg.bot_token && channel) {
       try {
-        const state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id, cfg.bridge_secret);
+        const state = await TMA.botApi.getPinnedState(cfg.bot_token, channel, cfg.bridge_secret);
         if (state) {
           lastState = state;
           await TMA.mirrorState(state);
@@ -193,6 +194,31 @@
     $("kpi-peak").textContent = report.peak_hour || "—";
     $("kpi-efficiency").textContent = report.efficiency || "—";
     $("kpi-gaps").textContent = report.staffing_gaps != null ? report.staffing_gaps : "—";
+    // Today vs typical weekday
+    const base = report.today_vs_baseline || {};
+    const bc = $("baseline-card");
+    if (bc && base.weekday && base.pct_diff != null) {
+      const up = base.pct_diff >= 0;
+      const color = Math.abs(base.pct_diff) >= 50 ? (up ? "text-red-400" : "text-amber-400") : (up ? "text-green-400" : "text-blue-300");
+      bc.innerHTML =
+        '<div class="text-xs opacity-60">' + T("todayVsTypical") + " " + esc(base.weekday) + "</div>" +
+        '<div class="text-2xl font-bold ' + color + '">' + (up ? "+" : "") + esc(base.pct_diff) + "%</div>" +
+        '<div class="text-xs opacity-60">' + T("todaySoFar") + ": " + esc(base.today_so_far) +
+        " · " + T("typicalSoFar") + ": " + esc(base.baseline_so_far) + "</div>" +
+        (base.anomaly ? '<div class="mt-1 badge badge-amber">' + T("anomalyDay") + "</div>" : "");
+    } else if (bc) {
+      bc.innerHTML = '<div class="text-xs opacity-60">' + T("todayVsTypical") + '</div><div class="text-sm opacity-50">' + T("insufficientData") + "</div>";
+    }
+    // Dwell estimate
+    const dwell = report.dwell || {};
+    const dc = $("dwell-card");
+    if (dc) {
+      dc.innerHTML =
+        '<div class="text-xs opacity-60">' + T("dwellEstimate") + "</div>" +
+        '<div class="text-2xl font-bold">' + (dwell.dwell_minutes != null ? esc(dwell.dwell_minutes) + " " + T("minutes") : "—") + "</div>" +
+        '<div class="text-xs opacity-60">' + T("avgOccupancy") + ": " + esc(dwell.avg_occupancy != null ? dwell.avg_occupancy : "—") +
+        " · " + T("arrivals") + ": " + esc(dwell.arrivals != null ? dwell.arrivals : "—") + "</div>";
+    }
     const trendEl = $("kpi-trend");
     const t = report.trend_pct_vs_yesterday;
     if (t != null) {
@@ -254,12 +280,70 @@
 
   async function loadSettingsForm() {
     const cfg = await TMA.config.get();
-    ["bot_token", "state_channel_id", "admin_id", "store_capacity", "staffing_threshold", "refresh_seconds", "bridge_secret"]
+    ["bot_token", "state_channel_id", "admin_id", "store_capacity", "staffing_threshold", "refresh_seconds", "bridge_secret", "relay_bot_token"]
       .forEach((k) => { const el = $(k); if (el) el.value = cfg[k] || ""; });
     $("prompt-input").value = cfg.ai_target_prompt || "";
     $("camera-list").innerHTML = "";
     const cams = cfg.cctv_rtsp_urls && cfg.cctv_rtsp_urls.length ? cfg.cctv_rtsp_urls : [{ id: "cam1", url: "", role: "entrance" }];
     cams.forEach(addCameraRow);
+    // Branches (multi-store)
+    const bl = $("branch-list");
+    bl.innerHTML = "";
+    const branches = Array.isArray(cfg.branches) ? cfg.branches : [];
+    branches.forEach((b) => addBranchRow(b));
+    renderBranchSelect(cfg);
+  }
+
+  function addBranchRow(b) {
+    b = b || { name: "", channel_id: "" };
+    const row = document.createElement("div");
+    row.className = "flex gap-2 items-center";
+    row.setAttribute("data-branch-row", "");
+    row.innerHTML =
+      '<input class="branch-name input flex-1" placeholder="' + T("branchName") + '" value="' + esc(b.name) + '">' +
+      '<input class="branch-channel input flex-1" placeholder="' + T("branchChannel") + '" value="' + esc(b.channel_id) + '">' +
+      '<button class="btn btn-ghost" data-branch-remove>✕</button>';
+    row.querySelector("[data-branch-remove]").addEventListener("click", () => {
+      row.remove();
+      refreshCfgCache();
+    });
+    $("branch-list").appendChild(row);
+  }
+
+  function collectBranches() {
+    return Array.from(document.querySelectorAll("[data-branch-row]")).map((row) => ({
+      name: row.querySelector(".branch-name").value.trim(),
+      channel_id: row.querySelector(".branch-channel").value.trim(),
+    })).filter((b) => b.name && b.channel_id);
+  }
+
+  async function refreshCfgCache() {
+    const cfg = await TMA.config.get();
+    renderBranchSelect(cfg);
+  }
+
+  function renderBranchSelect(cfg) {
+    const sel = $("branch-select");
+    if (!sel) return;
+    const branches = Array.isArray(cfg.branches) ? cfg.branches : [];
+    sel.innerHTML = "";
+    branches.forEach((b) => {
+      const opt = document.createElement("option");
+      opt.value = b.name;
+      opt.textContent = b.name;
+      if (cfg.active_branch === b.name) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.classList.toggle("hidden", branches.length < 2);
+  }
+
+  async function onBranchChange() {
+    const sel = $("branch-select");
+    if (!sel) return;
+    const cfg = await TMA.config.get();
+    cfg.active_branch = sel.value || "";
+    await TMA.config.set({ active_branch: cfg.active_branch });
+    refresh();
   }
 
   async function saveSettings() {
@@ -273,6 +357,8 @@
       staffing_threshold: $("staffing_threshold").value.trim(),
       refresh_seconds: $("refresh_seconds").value.trim() || "30",
       bridge_secret: $("bridge_secret").value.trim(),
+      relay_bot_token: $("relay_bot_token").value.trim(),
+      branches: collectBranches(),
       ai_target_prompt: $("prompt-input").value.trim(),
       cctv_rtsp_urls,
     };
@@ -285,10 +371,12 @@
       // CloudStorage mirror under the KB keys (visible instantly on reopen)
       try { await TMA.store.setItems({ cctv_rtsp_urls: JSON.stringify(cctv_rtsp_urls), ai_target_prompt: patch.ai_target_prompt }); } catch {}
       TMA.haptic("success");
-      const caveat = (via === "api" && TMA.isDemo)
-        ? " (daemon only receives it if this is a RELAY bot token)"
-        : "";
-      toast("Saved — pushed to core via " + (via === "api" ? "channel" : "sendData") + caveat);
+      const viaLabel = via === "relay"
+        ? "relay bot"
+        : via === "api"
+          ? "channel (main token — daemon may not see it)"
+          : "sendData";
+      toast("Saved — pushed via " + viaLabel);
       scheduleRefresh();
     } catch (err) {
       TMA.haptic("error");
@@ -326,6 +414,10 @@
     document.querySelectorAll("[data-tab-btn]").forEach((b) =>
       b.addEventListener("click", () => switchTab(b.getAttribute("data-tab-btn"))));
     $("add-camera").addEventListener("click", () => addCameraRow());
+    $("add-branch").addEventListener("click", () => addBranchRow());
+    const bsel = $("branch-select");
+    if (bsel) bsel.addEventListener("change", onBranchChange);
+    TMA.config.get().then(renderBranchSelect);
     $("save-settings").addEventListener("click", saveSettings);
     if (TMA.isDemo) {
       const banner = $("demo-banner");

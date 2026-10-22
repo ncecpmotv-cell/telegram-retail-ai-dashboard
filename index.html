@@ -15,6 +15,7 @@
     <header class="app-header">
       <h1 class="text-lg font-bold" data-i18n="appTitle">🏪 Retail AI</h1>
       <div class="flex items-center gap-2">
+        <select id="branch-select" class="input text-xs hidden"></select>
         <span id="conn-state" class="text-xs opacity-60" data-i18n="connecting">connecting…</span>
         <button id="lang-toggle" class="btn btn-ghost text-xs px-2 py-1">عربي</button>
       </div>
@@ -81,6 +82,16 @@
           <div class="card"><div class="text-xs opacity-60" data-i18n="staffingGaps24h">Staffing gaps (24h)</div>
             <div id="kpi-gaps" class="text-2xl font-bold">—</div></div>
         </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="card" id="baseline-card">
+            <div class="text-xs opacity-60" data-i18n="todayVsTypical">Today vs typical</div>
+            <div class="text-sm opacity-50">—</div>
+          </div>
+          <div class="card" id="dwell-card">
+            <div class="text-xs opacity-60" data-i18n="dwellEstimate">Avg dwell time</div>
+            <div class="text-sm opacity-50">—</div>
+          </div>
+        </div>
         <div class="card">
           <div class="text-sm font-semibold mb-1" data-i18n="peakDistribution">Peak-hour distribution</div>
           <div class="h-44"><canvas id="chart-peak"></canvas></div>
@@ -115,6 +126,8 @@
           <div class="space-y-2 mt-3">
             <label class="block text-xs opacity-60"><span data-i18n="botToken">BOT_TOKEN — any bot admin of the channel, used for READING state (see README)</span>
               <input id="bot_token" type="password" class="input w-full mt-1" placeholder="123456:ABC…" autocomplete="off"></label>
+            <label class="block text-xs opacity-60"><span data-i18n="relayToken">RELAY_BOT_TOKEN (optional second bot — enables full WRITE path from any context)</span>
+              <input id="relay_bot_token" type="password" class="input w-full mt-1" placeholder="(optional)" autocomplete="off"></label>
             <label class="block text-xs opacity-60"><span data-i18n="channelId">STATE_CHANNEL_ID (private channel)</span>
               <input id="state_channel_id" class="input w-full mt-1" placeholder="@MyStoreRetailAI"></label>
             <label class="block text-xs opacity-60"><span data-i18n="adminId">ADMIN_ID (Telegram id that may manage subscriptions)</span>
@@ -131,6 +144,12 @@
               <input id="refresh_seconds" type="number" class="input w-full mt-1" value="30"></label>
           </div>
         </details>
+
+        <div class="card">
+          <div class="text-sm font-semibold mb-2" data-i18n="branches">🏬 Branches (multi-store)</div>
+          <div id="branch-list" class="space-y-2"></div>
+          <button id="add-branch" class="btn btn-ghost mt-2 w-full" data-i18n="addBranch">+ Add branch</button>
+        </div>
 
         <button id="save-settings" class="btn btn-primary w-full" data-i18n="save">💾 Save &amp; push to core</button>
         <p class="text-xs opacity-50 text-center" data-i18n="saveNote">
