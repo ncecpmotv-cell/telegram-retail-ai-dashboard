@@ -1,0 +1,188 @@
+/* Retail AI Dashboard — mobile-first Telegram Mini App styles.
+   Uses Telegram theme CSS variables when available; safe-area aware. */
+
+:root {
+  --bg: var(--tg-theme-bg-color, #1c2733);
+  --secondary-bg: var(--tg-theme-secondary-bg-color, #242f3d);
+  --text: var(--tg-theme-text-color, #ffffff);
+  --hint: var(--tg-theme-hint-color, #8fa3b8);
+  --link: var(--tg-theme-link-color, #2ea6ff);
+  --button: var(--tg-theme-button-color, #2ea6ff);
+  --button-text: var(--tg-theme-button-text-color, #ffffff);
+  --destructive: var(--tg-theme-destructive-text-color, #ff5c5c);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-bg { background: var(--bg); }
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(8px + var(--safe-top)) 12px calc(20px + var(--safe-bottom));
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 4px 4px;
+  color: var(--hint);
+}
+.app-footer a { color: var(--link); text-decoration: none; }
+
+/* ---- tabs ---- */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--secondary-bg);
+  border-radius: 14px;
+  padding: 4px;
+  margin-bottom: 12px;
+}
+.tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--hint);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tab-active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- cards & panels ---- */
+.panel { display: block; }
+.card {
+  background: var(--secondary-bg);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+/* ---- badges ---- */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.badge-green  { background: #2fbf71; }
+.badge-amber  { background: #e8a33d; }
+.badge-red    { background: #e5484d; }
+.badge-gray   { background: #6b7a8a; }
+
+/* ---- alert & demo banner ---- */
+.alert {
+  margin-top: 10px;
+  background: rgba(229, 72, 77, 0.15);
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  color: #ffb3b5;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.demo-banner {
+  background: rgba(232, 163, 61, 0.15);
+  border: 1px solid rgba(232, 163, 61, 0.5);
+  color: #f3c583;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* ---- inputs & buttons ---- */
+.input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid rgba(143, 163, 184, 0.35);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 14px;
+  outline: none;
+}
+.input:focus { border-color: var(--link); }
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary { background: var(--button); color: var(--button-text); }
+.btn-ghost {
+  background: rgba(143, 163, 184, 0.12);
+  color: var(--text);
+}
+
+/* ---- toast ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + var(--safe-bottom));
+  transform: translateX(-50%) translateY(80px);
+  background: #0f1a24;
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  max-width: 88%;
+  opacity: 0;
+  transition: all 0.25s ease;
+  z-index: 50;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast-ok { border-left: 4px solid #2fbf71; }
+.toast-err { border-left: 4px solid #e5484d; }
+
+/* ---- skeleton shimmer ---- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  color: transparent !important;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+.hidden { display: none !important; }
+
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Retail AI — Store Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body class="app-bg">
+  <div class="app-shell">
+
+    <header class="app-header">
+      <h1 class="text-lg font-bold">🏪 Retail AI</h1>
+      <span id="conn-state" class="text-xs opacity-60">connecting…</span>
+    </header>
+
+    <div id="demo-banner" class="demo-banner hidden">
+      Demo mode — running outside Telegram with mock data.
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tab-bar">
+      <button class="tab tab-active" data-tab-btn="status">Status</button>
+      <button class="tab" data-tab-btn="insights">Insights</button>
+      <button class="tab" data-tab-btn="settings">Settings</button>
+    </nav>
+
+    <!-- Status panel -->
+    <section data-tab-panel="status" class="panel">
+      <div id="status-panel" class="space-y-4">
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm opacity-60">Live occupancy</div>
+              <div class="mt-1 flex items-end gap-2">
+                <span id="status-count" class="text-4xl font-bold">—</span>
+                <span class="text-sm opacity-60 mb-1">people</span>
+              </div>
+            </div>
+            <span id="status-badge" class="badge badge-gray">Unknown</span>
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div class="p-2 rounded-lg bg-white/5">
+              <div class="opacity-60">Congestion index</div>
+              <div id="status-index" class="font-semibold">—</div>
+            </div>
+            <div class="p-2 rounded-lg bg-white/5">
+              <div class="opacity-60">Updated</div>
+              <div id="status-updated" class="font-semibold text-xs">—</div>
+            </div>
+          </div>
+          <div id="status-alert" class="alert hidden"></div>
+          <div id="subscription-line" class="mt-3 text-sm opacity-70"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insights panel -->
+    <section data-tab-panel="insights" class="panel hidden">
+      <div id="bi-panel" class="space-y-4">
+        <div id="bi-empty" class="card text-center opacity-60 hidden py-8">
+          No analytics yet — the edge core has not posted a report.
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="card"><div class="text-xs opacity-60">Footfall today</div>
+            <div id="kpi-footfall" class="text-2xl font-bold">—</div></div>
+          <div class="card"><div class="text-xs opacity-60">Peak hour</div>
+            <div id="kpi-peak" class="text-2xl font-bold">—</div></div>
+          <div class="card"><div class="text-xs opacity-60">Staffing efficiency</div>
+            <div id="kpi-efficiency" class="text-2xl font-bold">—</div></div>
+          <div class="card"><div class="text-xs opacity-60">Staffing gaps (24h)</div>
+            <div id="kpi-gaps" class="text-2xl font-bold">—</div></div>
+        </div>
+        <div class="card">
+          <div class="text-sm font-semibold mb-1">Peak-hour distribution</div>
+          <div class="h-44"><canvas id="chart-peak"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-sm font-semibold">Footfall trend</div>
+            <span id="kpi-trend" class="text-sm"></span>
+          </div>
+          <div class="h-44"><canvas id="chart-trend"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings panel -->
+    <section data-tab-panel="settings" class="panel hidden">
+      <div class="space-y-4">
+        <div class="card">
+          <div class="text-sm font-semibold mb-2">📹 Cameras (RTSP)</div>
+          <div id="camera-list" class="space-y-2"></div>
+          <button id="add-camera" class="btn btn-ghost mt-2 w-full">+ Add camera</button>
+        </div>
+
+        <div class="card">
+          <div class="text-sm font-semibold mb-2">🧠 AI prompt</div>
+          <textarea id="prompt-input" rows="3" class="input w-full"
+            placeholder="Global instruction for the vision model"></textarea>
+        </div>
+
+        <details class="card">
+          <summary class="text-sm font-semibold cursor-pointer">🔌 Telegram bridge &amp; thresholds</summary>
+          <div class="space-y-2 mt-3">
+            <label class="block text-xs opacity-60">BOT_TOKEN (from @BotFather)
+              <input id="bot_token" type="password" class="input w-full mt-1" placeholder="123456:ABC…" autocomplete="off"></label>
+            <label class="block text-xs opacity-60">STATE_CHANNEL_ID (private channel)
+              <input id="state_channel_id" class="input w-full mt-1" placeholder="@MyStoreRetailAI"></label>
+            <label class="block text-xs opacity-60">ADMIN_ID (Telegram id that may manage subscriptions)
+              <input id="admin_id" class="input w-full mt-1" placeholder="123456789"></label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="block text-xs opacity-60">Store capacity
+                <input id="store_capacity" type="number" class="input w-full mt-1"></label>
+              <label class="block text-xs opacity-60">Staffing threshold
+                <input id="staffing_threshold" type="number" class="input w-full mt-1"></label>
+            </div>
+            <label class="block text-xs opacity-60">Refresh interval (seconds)
+              <input id="refresh_seconds" type="number" class="input w-full mt-1" value="30"></label>
+          </div>
+        </details>
+
+        <button id="save-settings" class="btn btn-primary w-full">💾 Save &amp; push to core</button>
+        <p class="text-xs opacity-50 text-center">
+          Settings are stored in Telegram CloudStorage and pushed to the edge
+          core through the private channel (see README).
+        </p>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <a href="admin.html" class="text-xs opacity-60">Admin panel →</a>
+      <span class="text-xs opacity-60">Retail AI · zero-cloud-cost</span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/js/telegram-sdk.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
