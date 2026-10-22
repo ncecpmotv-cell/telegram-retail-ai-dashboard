@@ -6,7 +6,7 @@ A purely static dashboard (no backend, no build step, zero hosting cost) that
 shows real-time store occupancy, retail BI charts, and lets owners change
 camera/prompt settings — while an admin panel manages subscriptions. It is the
 UI half of the system; the edge half is
-[`poco-retail-ai-core`](https://github.com/m0502369637-hub/poco-retail-ai-core).
+[`poco-retail-ai-core`](https://github.com/ncecpmotv-cell/poco-retail-ai-core).
 
 ```
 ┌────────────── POCO F3 (edge core) ──────────────┐      ┌── THIS REPO ──────────┐
@@ -40,7 +40,7 @@ UI half of the system; the edge half is
 It's a static site — serve the folder with any HTTP server:
 
 ```bash
-git clone https://github.com/m0502369637-hub/telegram-retail-ai-dashboard.git
+git clone https://github.com/ncecpmotv-cell/telegram-retail-ai-dashboard.git
 cd telegram-retail-ai-dashboard
 python3 -m http.server 8080          # or: npx serve .
 # open http://localhost:8080
@@ -52,16 +52,14 @@ whole UI — badges, charts, settings, admin — is testable in a normal browser
 ### Option B — GitHub Pages (recommended for production)
 
 1. Push this repo to GitHub.
-2. Repo **Settings → Pages** → *Build and deployment → Source: **Deploy from a
-   branch***, branch `main`, folder `/` — **this is already configured**, so
-   every push to `main` redeploys the site automatically.
+2. Pages is **already configured** with GitHub Actions
+   (`.github/workflows/pages.yml`): every push to `main` syntax-checks the JS
+   (`node --check`) and deploys the site automatically.
 3. Your app is live at
    `https://<user>.github.io/telegram-retail-ai-dashboard/`.
 
 **Why Pages?** Telegram Mini Apps require an HTTPS URL, and Pages provides one
-for free. (Optional: an Actions-based deploy with a `node --check` gate is
-provided at [`ci/github-actions-pages.yml`](ci/github-actions-pages.yml) — see
-the header comment in that file.)
+for free.
 
 ### Option C — any other static host
 
@@ -179,7 +177,7 @@ telegram-retail-ai-dashboard/
 │   ├── js/charts.js            # Chart.js builders (theme-aware)
 │   ├── js/admin.js             # admin logic
 │   └── css/style.css           # mobile-first, safe-area aware styles
-├── ci/github-actions-pages.yml # optional Actions-based deploy
+├── .github/workflows/pages.yml # GitHub Pages auto-deploy (node --check gate)
 └── docs/ARCHITECTURE.md        # component map + data flow
 ```
 

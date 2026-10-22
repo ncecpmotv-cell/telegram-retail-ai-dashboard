@@ -9,7 +9,7 @@
 | Owner UI | `index.html` + `assets/js/app.js` | Status badges, alert, subscription line, BI cards + charts, camera/prompt settings, bridge config, 30s polling |
 | Admin UI | `admin.html` + `assets/js/admin.js` | ADMIN_ID gate, fleet monitor, user list, subscription push |
 | Styles | `assets/css/style.css` | Telegram theme variables, safe-area insets, badges, skeleton, toast |
-| Deploy | GitHub Pages (legacy branch build) | Static site served from `main`; every push redeploys. Optional Actions-based deploy with a `node --check` gate lives in `ci/github-actions-pages.yml` |
+| Deploy | `.github/workflows/pages.yml` | `node --check` gate + GitHub Pages deploy on every push to `main` |
 
 ## 2. Data flow
 
