@@ -106,6 +106,8 @@
            " · " + T("infOk") + ": " + (dev.inference_ok || 0) + "/" + ((dev.inference_ok || 0) + (dev.inference_fail || 0)))
         : "";
     }
+    renderOps(state);
+
     const alertEl = $("status-alert");
     if (st.alert) {
       alertEl.textContent = "⚠ " + st.alert;
@@ -120,6 +122,64 @@
         ? "Subscription until " + fmtEpoch(exp) + (exp * 1000 < Date.now() ? " — EXPIRED" : "")
         : "No subscription expiry set";
       expiry.className = exp && exp * 1000 < Date.now() ? "text-red-500 text-sm" : "text-sm opacity-70";
+    }
+  }
+
+  /** Cafe-owner operational view: zones, staffing plan, camera health. */
+  function renderOps(state) {
+    const report = (state && state.last_analytics_report) || {};
+    // Zones
+    const zg = $("zones-grid");
+    if (zg) {
+      zg.innerHTML = "";
+      const zones = report.zones || {};
+      const ids = Object.keys(zones);
+      if (ids.length) {
+        ids.forEach((id) => {
+          const z = zones[id];
+          const div = document.createElement("div");
+          div.className = "p-2 rounded-lg bg-white/5";
+          div.innerHTML =
+            '<div class="text-xs opacity-60 truncate">📷 ' + esc(id) + "</div>" +
+            '<div class="font-semibold">' + esc(z.last_count) + " " + T("people") + "</div>" +
+            '<div class="text-xs opacity-60">' + T("footfallToday") + ": " + esc(z.footfall) + "</div>";
+          zg.appendChild(div);
+        });
+      }
+    }
+    // Staffing plan
+    const sp = $("staffing-plan");
+    if (sp) {
+      const plan = (report.staffing_plan || []).filter((p) => p.recommended_staff > 0);
+      sp.innerHTML = plan.length
+        ? '<div class="text-sm font-semibold mt-1 mb-2">👥 ' + T("recommendedStaffing") + "</div>"
+        : "";
+      const maxStaff = plan.length ? Math.max.apply(null, plan.map((p) => p.recommended_staff)) : 1;
+      plan.forEach((p) => {
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-2 mb-1 text-xs";
+        const hh = String(p.hour).padStart(2, "0") + ":00";
+        const width = Math.round((p.recommended_staff / maxStaff) * 100);
+        row.innerHTML =
+          '<div class="w-12 opacity-70">' + hh + "</div>" +
+          '<div class="flex-1 h-3 rounded bg-white/5 overflow-hidden">' +
+          '<div class="h-full rounded" style="width:' + width + '%;background:var(--tg-theme-button-color,#2ea6ff)"></div></div>' +
+          '<div class="w-16">' + esc(p.recommended_staff) + " " + T("staffNeeded") + "</div>";
+        sp.appendChild(row);
+      });
+    }
+    // Camera health
+    const ch = $("camera-health");
+    if (ch) {
+      const health = (state && state.device && state.device.cameras_health) || {};
+      const ids = Object.keys(health);
+      ch.textContent = ids.length
+        ? T("camHealth") + ": " + ids.map((id) => {
+            const h = health[id];
+            const icon = h.fail === 0 ? "🟢" : (h.ok >= h.fail ? "🟡" : "🔴");
+            return icon + " " + id + " (" + h.ok + "/" + (h.ok + h.fail) + ")";
+          }).join(" · ")
+        : "";
     }
   }
 

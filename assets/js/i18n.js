@@ -74,6 +74,9 @@
       channelLbl: "channel",
       lastSeen: "last seen",
       expiry: "expiry",
+      recommendedStaffing: "Recommended staffing (7-day average)",
+      staffNeeded: "staff",
+      camHealth: "Camera health",
     },
     ar: {
       appTitle: "🏪 ريتيل AI",
@@ -142,6 +145,9 @@
       channelLbl: "القناة",
       lastSeen: "آخر ظهور",
       expiry: "الانتهاء",
+      recommendedStaffing: "التوظيف المقترح (متوسط 7 أيام)",
+      staffNeeded: "موظف",
+      camHealth: "صحة الكاميرات",
     },
   };
 
