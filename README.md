@@ -77,15 +77,34 @@ Netlify / Cloudflare Pages / Vercel all work — point them at the repo root
 Chat with [@BotFather](https://t.me/BotFather):
 
 ```
-/newbot           → name it "Retail AI"
-/token            → copy the token (you'll paste it into the app Settings)
+/newbot           → name it "Retail AI"      (the MAIN bot)
+/token            → copy the token
 ```
+
+> The MAIN bot's token belongs **only** on the edge device (`config.env` in
+> `poco-retail-ai-core`). It is never entered into this dashboard.
+
+### 1b. Create the relay bot (why: Telegram never echoes a bot's own channel posts back to itself)
+
+`getUpdates` (which the edge daemon polls) does not deliver a bot's own
+channel messages back to that bot. So if the dashboard posted settings
+envelopes with the MAIN token, the daemon would never see them. The fix is a
+second bot used only for the dashboard's read/write side — which also keeps
+the main token off the frontend:
+
+```
+BotFather → /newbot   → name it "Retail AI Relay"   (the RELAY bot)
+/token               → copy the relay token
+```
+
+Add the **relay bot** to the channel too, as **administrator** with
+**Post messages** and **Pin messages** rights.
 
 ### 2. Create the state channel (the zero-cost bus)
 
 1. In Telegram: **New Channel** → name it (e.g. `MyStoreRetailAI`) → **Private**.
-2. Add your bot as **administrator** with **Post messages** and
-   **Pin messages** rights.
+2. Add **both** bots (`Retail AI` and `Retail AI Relay`) as **administrators**
+   with **Post messages** and **Pin messages** rights.
 3. Note the channel `@username` (create one in channel settings if missing).
 
 ### 3. Register the Mini App
@@ -101,7 +120,7 @@ Open the app, go to **Settings → Telegram bridge** and enter:
 
 | Field | Value |
 |---|---|
-| `BOT_TOKEN` | the token from step 1 |
+| `BOT_TOKEN` | the **RELAY bot's** token from step 1b (never the main bot's) |
 | `STATE_CHANNEL_ID` | the channel `@username` from step 2 |
 | `ADMIN_ID` | your numeric Telegram id (ask [@userinfobot](https://t.me/userinfobot)) |
 

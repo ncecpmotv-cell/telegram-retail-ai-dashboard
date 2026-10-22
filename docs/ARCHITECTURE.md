@@ -40,10 +40,14 @@
    pinned message is absent/malformed the UI degrades gracefully to the last
    CloudStorage mirror.
 2. **Write path** — settings/subscriptions are posted as envelopes to the same
-   channel via `sendMessage`; the core's `getUpdates` stream receives them as
-   `channel_post`. If no token/channel is configured, `WebApp.sendData()` is
-   used (works only when the Mini App was launched from a chat with the bot —
-   the UI reports the failure and tells the user to configure the bridge).
+   channel via `sendMessage` using the **relay bot's** token; the core's
+   `getUpdates` stream receives them as `channel_post`. The relay exists
+   because Telegram never delivers a bot's own channel posts back to that
+   bot, so posting with the main token would make the daemon blind to the
+   write path (verified live). If no token/channel is configured,
+   `WebApp.sendData()` is used as a fallback (works only when the Mini App
+   was launched from a chat with the bot — the UI reports the failure and
+   tells the user to configure the bridge).
 3. **Mirror** — every fetched state is mirrored into the user's CloudStorage
    under the KB keys (`current_status`, `last_analytics_report`,
    `subscription_expiry`), so reopening the app shows data instantly and the

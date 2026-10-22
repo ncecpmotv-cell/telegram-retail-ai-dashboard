@@ -10,6 +10,12 @@
  *                WebApp.sendData() is used as a fallback when no token/channel
  *                is configured (only works when launched from a bot chat).
  *
+ * RELAY BOT (important): the token entered in Settings must be a SECOND bot
+ * ("relay") added to the channel as admin. Telegram never delivers a bot's
+ * own channel posts back to itself via getUpdates, so envelopes posted with
+ * the same token the edge daemon polls would be invisible to the daemon.
+ * Using a relay token also keeps the main bot token off the frontend.
+ *
  * Envelope schema is shared with poco-retail-ai-core (see its README).
  *
  * IMPORTANT (documented deviation from the project knowledge base): the Bot
