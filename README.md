@@ -146,6 +146,11 @@ Beyond live status and BI charts, the Status tab now shows operational tools:
 - **Camera health** — 🟢/🟡/🔴 per camera from the core's grab/inference success counters
 - **Offline detection** — the badge turns "Offline" when the device hasn't posted for 10 minutes
 - **Chat alerts** — Critical congestion, new staffing gaps, and off-hours activity ping the owner's Telegram chat
+- **Today vs typical weekday** — a card compares today's traffic with the 4-week same-weekday average; ±50% flags an anomalous day
+- **Dwell estimate** — approximate visitor dwell time (Little's Law) with avg occupancy + arrivals
+- **Relay-bot writes** — enter a second bot's token (RELAY_BOT_TOKEN) and settings/subscriptions push through the channel from ANY context (no sendData needed)
+- **Multi-store branches** — add branches (name + @channel) in Settings; the header switcher reads each store's pinned state instantly
+
 
 ## 🔑 Data model
 
