@@ -51,14 +51,17 @@ whole UI — badges, charts, settings, admin — is testable in a normal browser
 
 ### Option B — GitHub Pages (recommended for production)
 
-1. Push this repo to GitHub (it's already wired for Pages via
-   `.github/workflows/pages.yml`).
-2. Repo **Settings → Pages** → *Source: GitHub Actions* (already enabled).
-3. The first push deploys to
+1. Push this repo to GitHub.
+2. Repo **Settings → Pages** → *Build and deployment → Source: **Deploy from a
+   branch***, branch `main`, folder `/` — **this is already configured**, so
+   every push to `main` redeploys the site automatically.
+3. Your app is live at
    `https://<user>.github.io/telegram-retail-ai-dashboard/`.
 
 **Why Pages?** Telegram Mini Apps require an HTTPS URL, and Pages provides one
-for free.
+for free. (Optional: an Actions-based deploy with a `node --check` gate is
+provided at [`ci/github-actions-pages.yml`](ci/github-actions-pages.yml) — see
+the header comment in that file.)
 
 ### Option C — any other static host
 
@@ -156,7 +159,7 @@ telegram-retail-ai-dashboard/
 │   ├── js/charts.js            # Chart.js builders (theme-aware)
 │   ├── js/admin.js             # admin logic
 │   └── css/style.css           # mobile-first, safe-area aware styles
-├── .github/workflows/pages.yml # auto-deploy to GitHub Pages
+├── ci/github-actions-pages.yml # optional Actions-based deploy
 └── docs/ARCHITECTURE.md        # component map + data flow
 ```
 
