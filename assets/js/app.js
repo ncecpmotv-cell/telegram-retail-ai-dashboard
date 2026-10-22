@@ -10,6 +10,7 @@
   let timers = [];
   let chartInstances = [];
   let lastState = null;
+  let lastSource = null;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -44,22 +45,31 @@
   // ------------------------------------------------------------------ state
   async function fetchState() {
     const cfg = await TMA.config.get();
-    if (!TMA.isDemo && cfg.bot_token && cfg.state_channel_id) {
-      const state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
-      if (state) {
-        lastState = state;
-        await TMA.mirrorState(state);
-        return state;
+    // Live channel-bus read works in ANY browser (Bot API is CORS-open) —
+    // try it first whenever a token + channel are configured.
+    if (cfg.bot_token && cfg.state_channel_id) {
+      try {
+        const state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
+        if (state) {
+          lastState = state;
+          await TMA.mirrorState(state);
+          lastSource = "live";
+          return state;
+        }
+      } catch (err) {
+        toast("Channel read failed: " + err.message, false);
       }
     }
     if (TMA.isDemo) {
       lastState = TMA.demoTick();
+      lastSource = "demo";
       return lastState;
     }
-    // Live but unconfigured: try the CloudStorage mirror of the last state.
+    // Live Telegram but unconfigured: try the CloudStorage mirror of the last state.
     try {
       const mirror = await TMA.store.getItems(TMA.MIRROR_KEYS);
       if (mirror.current_status) {
+        lastSource = "mirror";
         return {
           type: "state",
           updated_at: null,
@@ -126,7 +136,12 @@
       const state = await fetchState();
       renderStatus(state);
       renderBI(state && state.last_analytics_report);
-      $("conn-state").textContent = TMA.isDemo ? "Demo mode (mock data)" : "Live · channel bus";
+      const labels = {
+        live: "Live · reading the channel bus",
+        mirror: "Cached mirror (no channel configured)",
+        demo: "Demo mode (mock data)",
+      };
+      $("conn-state").textContent = labels[lastSource] || labels.demo;
     } catch (err) {
       toast("Could not load state: " + err.message, false);
       $("conn-state").textContent = "Live · last load failed";
@@ -193,7 +208,10 @@
       // CloudStorage mirror under the KB keys (visible instantly on reopen)
       try { await TMA.store.setItems({ cctv_rtsp_urls: JSON.stringify(cctv_rtsp_urls), ai_target_prompt: patch.ai_target_prompt }); } catch {}
       TMA.haptic("success");
-      toast("Saved — pushed to core via " + (via === "api" ? "channel" : "sendData"));
+      const caveat = (via === "api" && TMA.isDemo)
+        ? " (daemon only receives it if this is a RELAY bot token)"
+        : "";
+      toast("Saved — pushed to core via " + (via === "api" ? "channel" : "sendData") + caveat);
       scheduleRefresh();
     } catch (err) {
       TMA.haptic("error");

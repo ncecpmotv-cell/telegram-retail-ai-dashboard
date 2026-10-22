@@ -116,17 +116,19 @@
   async function renderFleet() {
     const el = $("fleet-card");
     const cfg = await TMA.config.get();
-    if (!TMA.isDemo && !(cfg.bot_token && cfg.state_channel_id)) {
-      el.innerHTML = '<div class="text-sm opacity-60 p-3">Configure BOT_TOKEN + channel in Settings first.</div>';
-      return;
-    }
     let state = null;
-    try {
-      state = TMA.isDemo
-        ? TMA.demoTick()
-        : await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
-    } catch (err) {
-      el.innerHTML = '<div class="text-sm text-red-400 p-3">Fleet read failed: ' + esc(err.message) + "</div>";
+    if (cfg.bot_token && cfg.state_channel_id) {
+      // Live read works in any browser too (Bot API is CORS-open).
+      try {
+        state = await TMA.botApi.getPinnedState(cfg.bot_token, cfg.state_channel_id);
+      } catch (err) {
+        el.innerHTML = '<div class="text-sm text-red-400 p-3">Fleet read failed: ' + esc(err.message) + "</div>";
+        return;
+      }
+    } else if (TMA.isDemo) {
+      state = TMA.demoTick();
+    } else {
+      el.innerHTML = '<div class="text-sm opacity-60 p-3">Configure BOT_TOKEN + channel in Settings first.</div>';
       return;
     }
     const st = (state && state.current_status) || {};
