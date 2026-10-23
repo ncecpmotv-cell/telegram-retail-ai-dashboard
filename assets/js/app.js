@@ -514,10 +514,17 @@
     };
     await TMA.config.set(patch);
     try {
-      const via = await TMA.pushEnvelope("set_config", {
+      // Push the thresholds too, so the edge core's congestion/staffing math
+      // matches what the owner set here (previously these were local-only).
+      const payload = {
         cctv_rtsp_urls,
         ai_target_prompt: patch.ai_target_prompt,
-      });
+      };
+      const capacity = parseInt(patch.store_capacity, 10);
+      const threshold = parseInt(patch.staffing_threshold, 10);
+      if (capacity > 0) payload.store_capacity = capacity;
+      if (threshold > 0) payload.staffing_threshold = threshold;
+      const via = await TMA.pushEnvelope("set_config", payload);
       // CloudStorage mirror under the KB keys (visible instantly on reopen)
       try { await TMA.store.setItems({ cctv_rtsp_urls: JSON.stringify(cctv_rtsp_urls), ai_target_prompt: patch.ai_target_prompt }); } catch {}
       TMA.haptic("success");
