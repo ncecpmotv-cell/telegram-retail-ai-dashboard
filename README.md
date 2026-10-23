@@ -151,6 +151,22 @@ Beyond live status and BI charts, the Status tab now shows operational tools:
 - **Relay-bot writes** — enter a second bot's token (RELAY_BOT_TOKEN) and settings/subscriptions push through the channel from ANY context (no sendData needed)
 - **Multi-store branches** — add branches (name + @channel) in Settings; the header switcher reads each store's pinned state instantly
 
+### 📈 Operational optimization (Status tab, live)
+
+Five owner-focused tools computed from the live state envelope (no backend):
+
+| Feature | What it does |
+|---|---|
+| **Live capacity gauge** | Occupancy bar (`count / store capacity`) with green/amber/red congestion bands and "N more people before Critical" headroom |
+| **Today's recommendations** | A prioritized action feed — rush preparation, congestion, staffing gaps, failing cameras, expiring subscription, anomalous day, slow-hour tips |
+| **Rush-hour forecast** | Next busy hour from the 7-day staffing plan, with a "Get ready" badge when a rush starts within the hour |
+| **Recent staffing-gap timeline** | The last 24h of `count > threshold & no staff` events, with time + zone, to spot recurring gaps |
+| **Busiest-zone spotlight** | Zones ranked by today's footfall with a relative bar and a ⭐ on the busiest area |
+
+These all read fields the core already ships (`congestion_index`, `staffing_plan`,
+`last_staffing_gaps`, `zones`, `today_vs_baseline`, `subscription_expiry`) and are
+fully testable in demo mode (mock data).
+
 
 ## 🔑 Data model
 

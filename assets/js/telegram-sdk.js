@@ -34,7 +34,11 @@
   const MIRROR_KEYS = ["current_status", "last_analytics_report", "subscription_expiry"];
 
   const WebApp = (window.Telegram && window.Telegram.WebApp) || null;
-  const isDemo = !WebApp;
+  // A real Mini App is launched from Telegram with non-empty initData. The
+  // CDN script still defines window.Telegram.WebApp in a normal browser (with
+  // empty initData), so `!WebApp` alone would wrongly run in "live" mode and
+  // never reach demo mode. Require initData to treat the session as live.
+  const isDemo = !WebApp || !(WebApp.initData && WebApp.initData.length > 0);
 
   /** localStorage-backed stand-in for Telegram CloudStorage (demo mode). */
   const demoStore = {
@@ -55,7 +59,7 @@
   };
 
   function storage() {
-    if (!WebApp) return demoStore;
+    if (isDemo) return demoStore;
     if (WebApp.CloudStorage && WebApp.CloudStorage.getItems) {
       return {
         getItem: (k) => new Promise((res) => WebApp.CloudStorage.getItem(k, (e, v) => res(e || !v ? null : v))),
@@ -240,27 +244,77 @@
 
   /** Demo-mode synthetic state so the UI is fully testable in a browser. */
   function demoTick() {
+    const now = Math.floor(Date.now() / 1000);
     const hours = [];
     for (let h = 8; h <= 21; h++) {
-      hours.push({ hour: Math.floor(Date.now() / 1000) - (Date.now() % 3600000) / 1000 - (21 - h) * 3600, footfall: 2 + Math.round(14 * Math.exp(-Math.pow(h - 13, 2) / 18) + Math.random() * 5) });
+      hours.push({ hour: now - (now % 3600) - (21 - h) * 3600, footfall: 2 + Math.round(14 * Math.exp(-Math.pow(h - 13, 2) / 18) + Math.random() * 5) });
     }
     const count = 8 + Math.floor(Math.random() * 18);
     const capacity = 50;
     const idx = count / capacity;
+    const nowH = new Date().getHours();
+
+    // 7-day staffing plan (recommended staff per hour of day).
+    const staffing_plan = [];
+    for (let h = 0; h < 24; h++) {
+      const avg = (h >= 8 && h <= 21) ? Math.round(8 * Math.exp(-Math.pow(h - 13, 2) / 18)) : 0;
+      staffing_plan.push({
+        hour: h,
+        avg_footfall: avg,
+        recommended_staff: avg >= 15 ? Math.ceil(avg / 15) : (avg > 0 ? 1 : 0),
+      });
+    }
+
+    const zones = {
+      entrance: { footfall: 88 + Math.floor(Math.random() * 22), observations: 40, last_count: 8, last_seen: now },
+      counter: { footfall: 58 + Math.floor(Math.random() * 18), observations: 40, last_count: 5, last_seen: now },
+      seating: { footfall: 41 + Math.floor(Math.random() * 14), observations: 40, last_count: 3, last_seen: now },
+    };
+
+    const pct = Math.round((Math.random() - 0.4) * 70);
+    const today_vs_baseline = {
+      weekday: new Date().toLocaleDateString("en", { weekday: "long" }),
+      today_so_far: 142,
+      baseline_so_far: 120,
+      pct_diff: pct,
+      status: pct >= 15 ? "up" : pct <= -15 ? "down" : "normal",
+      anomaly: Math.abs(pct) >= 50,
+    };
+
+    const dwell = { avg_occupancy: 12.4, arrivals: 8, dwell_minutes: 18.5 };
+
+    const last_staffing_gaps = [
+      { timestamp: now - 45 * 60, camera_id: "counter", count: 19 },
+      { timestamp: now - 130 * 60, camera_id: "seating", count: 17 },
+    ];
+
+    const device = {
+      last_inference_ms: 2200 + Math.floor(Math.random() * 1500),
+      uptime_seconds: 86400 * 2 + Math.floor(Math.random() * 86400),
+      inference_ok: 3400 + Math.floor(Math.random() * 300),
+      inference_fail: Math.random() < 0.3 ? 2 : 0,
+      cameras_health: {
+        entrance: { ok: 40, fail: 0 },
+        counter: { ok: 38, fail: 2 },
+        seating: { ok: 40, fail: 0 },
+      },
+    };
+
     return {
       type: "state",
-      updated_at: Math.floor(Date.now() / 1000),
-      subscription_expiry: Math.floor(Date.now() / 1000) + 30 * 86400,
+      updated_at: now,
+      subscription_expiry: now + 30 * 86400,
+      device,
       current_status: {
         status: idx >= 0.9 ? "Critical" : idx >= 0.6 ? "Congested" : "Normal",
         count,
         alert: count > 15 && Math.random() < 0.3 ? "Staffing gap: no staff detected in a busy area" : null,
         camera_id: "cam1",
         congestion_index: Math.round(idx * 100) / 100,
-        timestamp: Math.floor(Date.now() / 1000),
+        timestamp: now,
       },
       last_analytics_report: {
-        generated_at: Math.floor(Date.now() / 1000),
+        generated_at: now,
         peak_hour: "13:00",
         peak_hour_distribution: hours,
         total_visits: hours.reduce((a, h) => a + h.footfall, 0),
@@ -268,10 +322,15 @@
         footfall_yesterday: 118,
         trend_pct_vs_yesterday: 20.3,
         staffing_gaps: 2,
+        last_staffing_gaps,
         congestion_index: Math.round(idx * 100) / 100,
         congestion_level: idx >= 0.9 ? "Critical" : idx >= 0.6 ? "Congested" : "Normal",
         efficiency: "92.5%",
         current_count: count,
+        zones,
+        staffing_plan,
+        today_vs_baseline,
+        dwell,
       },
     };
   }

@@ -186,3 +186,59 @@ html, body {
 
 summary { list-style: none; }
 summary::-webkit-details-marker { display: none; }
+
+/* ---- capacity gauge ---- */
+.gauge-track {
+  height: 10px;
+  background: rgba(143, 163, 184, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.gauge-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.gauge-green { background: #2fbf71; }
+.gauge-amber { background: #e8a33d; }
+.gauge-red   { background: #e5484d; }
+
+/* ---- ops action feed ---- */
+.ops-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: rgba(143, 163, 184, 0.08);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.ops-item:last-child { margin-bottom: 0; }
+
+/* ---- zone bars ---- */
+.zone-bar-track {
+  height: 6px;
+  background: rgba(143, 163, 184, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.zone-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tg-theme-button-color, #2ea6ff);
+  transition: width 0.4s ease;
+}
+.zone-busiest { outline: 1px solid var(--tg-theme-button-color, #2ea6ff); }
+
+/* ---- overflow safety (keep every element inside its container) ---- */
+.card, .input, .btn, .ops-item {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+img, canvas, svg { max-width: 100%; height: auto; }
+input, select, textarea { max-width: 100%; min-width: 0; }
+.flex-min { min-width: 0; }

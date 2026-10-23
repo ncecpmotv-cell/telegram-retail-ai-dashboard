@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Retail AI — Store Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -13,11 +14,11 @@
   <div class="app-shell">
 
     <header class="app-header">
-      <h1 class="text-lg font-bold" data-i18n="appTitle">🏪 Retail AI</h1>
-      <div class="flex items-center gap-2">
-        <select id="branch-select" class="input text-xs hidden"></select>
-        <span id="conn-state" class="text-xs opacity-60" data-i18n="connecting">connecting…</span>
-        <button id="lang-toggle" class="btn btn-ghost text-xs px-2 py-1">عربي</button>
+      <h1 class="text-lg font-bold shrink-0" data-i18n="appTitle">🏪 Retail AI</h1>
+      <div class="flex items-center gap-2 flex-wrap justify-end min-w-0">
+        <select id="branch-select" class="input text-xs hidden min-w-0 max-w-[120px]"></select>
+        <span id="conn-state" class="text-xs opacity-60 truncate min-w-0" data-i18n="connecting">connecting…</span>
+        <button id="lang-toggle" class="btn btn-ghost text-xs px-2 py-1 shrink-0">عربي</button>
       </div>
     </header>
 
@@ -57,9 +58,13 @@
             </div>
           </div>
           <div id="device-metrics" class="mt-2 text-xs opacity-60"></div>
+          <div id="capacity-gauge" class="mt-3"></div>
+          <div id="ops-feed" class="mt-3"></div>
           <div id="zones-grid" class="grid grid-cols-2 gap-2 mt-3"></div>
+          <div id="rush-forecast" class="mt-3"></div>
           <div id="camera-health" class="mt-3 text-xs opacity-70"></div>
           <div id="staffing-plan" class="mt-3"></div>
+          <div id="recent-gaps" class="mt-3"></div>
           <div id="status-alert" class="alert hidden"></div>
           <div id="subscription-line" class="mt-3 text-sm opacity-70"></div>
         </div>

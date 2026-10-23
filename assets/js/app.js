@@ -11,10 +11,13 @@
   let chartInstances = [];
   let lastState = null;
   let lastSource = null;
+  let cachedCfg = null;
 
   const $ = (id) => document.getElementById(id);
   const T = (window.RetailI18n && window.RetailI18n.t) || ((k) => k);
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  /** Translate with {placeholder} interpolation, e.g. tf("actRush", {n: 3, h: "14:00"}). */
+  const tf = (key, vars) => T(key).replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] != null ? vars[k] : m));
 
   // ---------------------------------------------------------------- helpers
   function toast(msg, ok = true) {
@@ -46,6 +49,7 @@
   // ------------------------------------------------------------------ state
   async function fetchState() {
     const cfg = await TMA.config.get();
+    cachedCfg = cfg;
     const channel = TMA.activeChannel(cfg);
     // Live channel-bus read works in ANY browser (Bot API is CORS-open) —
     // try it first whenever a token + channel are configured.
@@ -108,6 +112,10 @@
         : "";
     }
     renderOps(state);
+    renderCapacity(state);
+    renderActions(state);
+    renderRushForecast(state);
+    renderRecentGaps(state);
 
     const alertEl = $("status-alert");
     if (st.alert) {
@@ -134,16 +142,23 @@
     if (zg) {
       zg.innerHTML = "";
       const zones = report.zones || {};
-      const ids = Object.keys(zones);
+      // Rank zones by today's footfall so the busiest area floats to the top.
+      const ids = Object.keys(zones).sort((a, b) => (zones[b].footfall || 0) - (zones[a].footfall || 0));
+      const maxFoot = ids.length ? Math.max(1, Math.max.apply(null, ids.map((i) => zones[i].footfall || 0))) : 1;
       if (ids.length) {
-        ids.forEach((id) => {
+        ids.forEach((id, rank) => {
           const z = zones[id];
           const div = document.createElement("div");
-          div.className = "p-2 rounded-lg bg-white/5";
+          div.className = "p-2 rounded-lg bg-white/5" + (rank === 0 ? " zone-busiest" : "");
+          const width = Math.round(((z.footfall || 0) / maxFoot) * 100);
           div.innerHTML =
-            '<div class="text-xs opacity-60 truncate">📷 ' + esc(id) + "</div>" +
+            '<div class="flex items-center justify-between gap-1">' +
+              '<div class="text-xs opacity-60 truncate min-w-0">📷 ' + esc(id) + "</div>" +
+              (rank === 0 ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 shrink-0">⭐ ' + T("busiestNow") + "</span>" : "") +
+            "</div>" +
             '<div class="font-semibold">' + esc(z.last_count) + " " + T("people") + "</div>" +
-            '<div class="text-xs opacity-60">' + T("footfallToday") + ": " + esc(z.footfall) + "</div>";
+            '<div class="text-xs opacity-60">' + T("footfallToday") + ": " + esc(z.footfall) + "</div>" +
+            '<div class="zone-bar-track"><div class="zone-bar-fill" style="width:' + width + '%"></div></div>';
           zg.appendChild(div);
         });
       }
@@ -182,6 +197,141 @@
           }).join(" · ")
         : "";
     }
+  }
+
+  /** Occupancy gauge: current people vs store capacity with congestion bands. */
+  function renderCapacity(state) {
+    const el = $("capacity-gauge");
+    if (!el) return;
+    const st = (state && state.current_status) || {};
+    const count = st.count != null ? Number(st.count) : 0;
+    const capacity = parseInt((cachedCfg && cachedCfg.store_capacity) || "50", 10) || 0;
+    if (!capacity) {
+      el.innerHTML = '<div class="text-xs opacity-60">' + T("capacityUnknown") + "</div>";
+      return;
+    }
+    const ratio = Math.max(0, Math.min(1, count / capacity));
+    const pct = Math.round(ratio * 100);
+    const band = ratio >= 0.9 ? "red" : ratio >= 0.6 ? "amber" : "green";
+    const headroom = Math.max(0, capacity - count);
+    el.innerHTML =
+      '<div class="flex items-center justify-between text-xs mb-1">' +
+        '<span class="opacity-70">' + T("capacityTitle") + "</span>" +
+        '<span class="font-semibold">' + count + " / " + capacity + "</span>" +
+      "</div>" +
+      '<div class="gauge-track"><div class="gauge-fill gauge-' + band + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="text-xs opacity-60 mt-1">' +
+        (headroom > 0 ? tf("capacityHeadroom", { n: headroom }) : T("capacityFull")) +
+      "</div>";
+  }
+
+  /** Next busy hour (rush forecast) from the 7-day staffing plan. */
+  function renderRushForecast(state) {
+    const el = $("rush-forecast");
+    if (!el) return;
+    const report = (state && state.last_analytics_report) || {};
+    const plan = (report.staffing_plan || []).filter((p) => p.recommended_staff > 0);
+    if (!plan.length) { el.innerHTML = ""; return; }
+    const nowH = new Date().getHours();
+    const next = plan.find((p) => p.hour === (nowH + 1) % 24) || plan.find((p) => p.hour === (nowH + 2) % 24);
+    let html = '<div class="text-sm font-semibold mb-2">' + T("rushForecast") + "</div>";
+    if (next) {
+      const start = String(next.hour).padStart(2, "0") + ":00";
+      const end = String((next.hour + 1) % 24).padStart(2, "0") + ":00";
+      html +=
+        '<div class="flex items-center gap-2 flex-wrap">' +
+          '<span class="text-xs opacity-70">' + T("nextRush") + "</span>" +
+          '<span class="font-semibold">' + tf("rushWindow", { start, end }) + "</span>" +
+          '<span class="text-xs opacity-70">' + tf("rushStaff", { n: next.recommended_staff }) + "</span>" +
+          (next.hour === (nowH + 1) % 24 ? '<span class="badge badge-amber">' + T("getReady") + "</span>" : "") +
+        "</div>";
+    } else {
+      html += '<div class="text-xs opacity-60">' + T("noRushAhead") + "</div>";
+    }
+    el.innerHTML = html;
+  }
+
+  /** Timeline of the most recent staffing gaps (time + camera + crowd). */
+  function renderRecentGaps(state) {
+    const el = $("recent-gaps");
+    if (!el) return;
+    const report = (state && state.last_analytics_report) || {};
+    const gaps = report.last_staffing_gaps || [];
+    let html = '<div class="text-sm font-semibold mb-1">' + T("recentGaps") + "</div>";
+    if (!gaps.length) {
+      html += '<div class="text-xs opacity-60">' + T("noGaps24h") + "</div>";
+    } else {
+      gaps.forEach((g) => {
+        const time = g.timestamp
+          ? new Date(g.timestamp * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : "—";
+        html +=
+          '<div class="flex items-center gap-2 text-xs py-1.5" style="border-bottom:1px solid rgba(143,163,184,0.12)">' +
+            '<span class="text-red-400 shrink-0">⚠</span>' +
+            '<span class="opacity-70 shrink-0">' + esc(time) + "</span>" +
+            '<span class="font-semibold truncate min-w-0">' + esc(g.camera_id || "?") + "</span>" +
+            '<span class="opacity-70 ml-auto shrink-0">' + esc(g.count) + " " + T("people") + " · " + T("noStaffShort") + "</span>" +
+          "</div>";
+      });
+    }
+    el.innerHTML = html;
+  }
+
+  /** Prioritized "what should I do right now" action feed for the owner. */
+  function renderActions(state) {
+    const el = $("ops-feed");
+    if (!el) return;
+    const st = (state && state.current_status) || {};
+    const report = (state && state.last_analytics_report) || {};
+    const actions = [];
+
+    // 1) Rush starting within the hour
+    const plan = (report.staffing_plan || []).filter((p) => p.recommended_staff > 0);
+    const nowH = new Date().getHours();
+    const nextH = plan.find((p) => p.hour === (nowH + 1) % 24);
+    if (nextH) actions.push(tf("actRush", { n: nextH.recommended_staff, h: String(nextH.hour).padStart(2, "0") + ":00" }));
+
+    // 2) Congestion happening right now
+    if (st.status === "Critical" || st.status === "Congested") {
+      actions.push(tf("actCongested", { level: st.status }));
+    }
+
+    // 3) Staffing gaps over the last 24h
+    if (report.staffing_gaps > 0) actions.push(tf("actGaps", { n: report.staffing_gaps }));
+
+    // 4) Failing cameras
+    const health = (state && state.device && state.device.cameras_health) || {};
+    Object.keys(health).forEach((id) => {
+      const h = health[id];
+      if (h && h.fail > 0 && h.fail >= h.ok) actions.push(tf("actCamera", { cam: id }));
+    });
+
+    // 5) Subscription expiring within a week
+    const exp = state && state.subscription_expiry;
+    if (exp) {
+      const days = Math.ceil((exp * 1000 - Date.now()) / 86400000);
+      if (days <= 7) actions.push(days <= 0 ? T("actSubSoon") : tf("actSubDays", { d: days }));
+    }
+
+    // 6) Anomalous day vs typical weekday
+    const base = report.today_vs_baseline || {};
+    if (base.anomaly && base.weekday && base.pct_diff != null) {
+      actions.push(tf(base.pct_diff >= 0 ? "actAnomalyUp" : "actAnomalyDown", { day: base.weekday }));
+    }
+
+    // 7) Quiet right now (slow-hour tip)
+    const count = st.count != null ? Number(st.count) : null;
+    if (count != null && count <= 1 && report.footfall_today > 0) actions.push(T("actSlow"));
+
+    let html = '<div class="text-sm font-semibold mb-2">' + T("opsFeed") + "</div>";
+    if (!actions.length) {
+      html += '<div class="text-xs opacity-60">' + T("allGood") + "</div>";
+    } else {
+      actions.slice(0, 4).forEach((a) => {
+        html += '<div class="ops-item">' + a + "</div>";
+      });
+    }
+    el.innerHTML = html;
   }
 
   function renderBI(report) {
@@ -264,12 +414,12 @@
   function addCameraRow(cam) {
     cam = cam || { id: "", url: "", role: "general" };
     const row = document.createElement("div");
-    row.className = "flex gap-2 items-center";
+    row.className = "flex gap-2 items-center flex-wrap";
     row.setAttribute("data-cam-row", "");
     row.innerHTML =
-      '<input class="cam-id input w-24" placeholder="id" value="' + esc(cam.id) + '">' +
-      '<input class="cam-url input flex-1" placeholder="rtsp://user:pass@ip:554/stream" value="' + esc(cam.url) + '">' +
-      '<select class="cam-role input w-28">' +
+      '<input class="cam-id input w-20 min-w-0" placeholder="id" value="' + esc(cam.id) + '">' +
+      '<input class="cam-url input flex-1 min-w-[120px]" placeholder="rtsp://user:pass@ip:554/stream" value="' + esc(cam.url) + '">' +
+      '<select class="cam-role input w-24 min-w-0">' +
       ["entrance", "cashier", "aisle", "general"].map((r) =>
         '<option value="' + r + '"' + (r === (cam.role || "general") ? " selected" : "") + ">" + r + "</option>").join("") +
       "</select>" +
@@ -297,12 +447,12 @@
   function addBranchRow(b) {
     b = b || { name: "", channel_id: "" };
     const row = document.createElement("div");
-    row.className = "flex gap-2 items-center";
+    row.className = "flex gap-2 items-center flex-wrap";
     row.setAttribute("data-branch-row", "");
     row.innerHTML =
-      '<input class="branch-name input flex-1" placeholder="' + T("branchName") + '" value="' + esc(b.name) + '">' +
-      '<input class="branch-channel input flex-1" placeholder="' + T("branchChannel") + '" value="' + esc(b.channel_id) + '">' +
-      '<button class="btn btn-ghost" data-branch-remove>✕</button>';
+      '<input class="branch-name input flex-1 min-w-[100px]" placeholder="' + T("branchName") + '" value="' + esc(b.name) + '">' +
+      '<input class="branch-channel input flex-1 min-w-[100px]" placeholder="' + T("branchChannel") + '" value="' + esc(b.channel_id) + '">' +
+      '<button class="btn btn-ghost shrink-0" data-branch-remove>✕</button>';
     row.querySelector("[data-branch-remove]").addEventListener("click", () => {
       row.remove();
       refreshCfgCache();
